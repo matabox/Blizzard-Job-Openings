@@ -7,9 +7,11 @@ import pdfkit
 import os
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
 
 ''' Output location '''
-filePath = "/opt/scripts/utils/"
+filePath = "/opt/scripts/bliz_jobs/"
 
 ''' Blizzard Job Openings URL '''
 url = "https://careers.blizzard.com/en-us/openings/partial?roles[]=%s&teams=&locations=&types=&search="
@@ -31,33 +33,45 @@ foundDate = datetime.datetime.now()
 date = foundDate.strftime("%Y-%m-%d")
 
 ''' Email variables '''
+toAddr = "<mailbox1>@<domain1>, <mailbox2>@<domain2>"
+toAddrs = toAddr.split(',')
 toAddr = "<mailbox>@<domain>"
 fromAddr = "<mailbox>@<domain>"
 smtpServer = "<smtpserver>"
 username = "<username>"
 password = "<password>"
 
-def sendEmail(data):
+
+def sendEmail(data, attachments):
 
 	print "[+] Found data, sending email to %s" % (toAddr)
 
 	''' Email body / subject '''
-	emailBody = "Hi %s,\n\nThe following new jobs have opened at Blizzard:\n%s" % (toAddr, data)
+	emailBody = "The following new jobs have opened at Blizzard:\n%s" % (data)
 	emailSubject = "Blizzard Job Openings %s" % (date)
 
+	msg = MIMEMultipart()
+
 	''' Email attributes '''
-	msg = MIMEText(emailBody)
-	msg["To"] = toAddr
+	msg["Bcc"] = toAddr
 	msg["From"] = fromAddr
 	msg["Subject"] = emailSubject
 
-        print msg
-        
+	msg.attach(MIMEText(emailBody))
+
+	for attFile in attachments:
+	    f = filePath + attFile[0] + "/" + attFile[3] + ".html"
+
+  	    with open(f, "rb") as fil:
+		part = MIMEApplication(fil.read(), Name=os.path.basename(f))
+		part["Content-Disposition"] = 'atachment; filename="%s"' % (os.path.basename(f))
+		msg.attach(part)
+
 	s = smtplib.SMTP(smtpServer)
 	''' Authenticate '''
 	s.login(username, password)
 	''' Send email '''
-	s.sendmail(fromAddr, toAddr, msg.as_string())
+	s.sendmail(fromAddr, toAddrs, msg.as_string())
 	s.quit()	
 
 if __name__ == '__main__':
@@ -78,14 +92,15 @@ if __name__ == '__main__':
         
             for job in jobs:  
                 path = filePath + role + "/" + job[0]
-                if not os.path.exists(path + ".pdf"):
+                if not os.path.exists(path + ".html"):
                     print "[*] Found new job, downloading info.. %s" % (job[1])
 
                     downloadUrl = jobUrl + job[0]
 
-                    jobList.append([role, job[1], downloadUrl])
+                    jobList.append([role, job[1], downloadUrl, job[0]])
 
-                    pdfkit.from_url(downloadUrl, path + ".pdf")
+		    ''' Create PDF '''
+                    #pdfkit.from_url(downloadUrl, path + ".pdf")
 
                     j = requests.get(downloadUrl)
                     metadata = re.findall(regexMetadata, j.text)
@@ -106,7 +121,7 @@ if __name__ == '__main__':
             ''' Get the data into a printable format '''
             for job in jobList:
                 if job[0] != role:
-                    message = message + "\n" + job[0].title()
+                    message = message + "\n-------------------------\n" + job[0].title() + "\n-------------------------"
                 
                 message = message + "\n\tDate: " + date
                 message = message + "\n\tJob Opening: " +  job[1]
@@ -116,7 +131,7 @@ if __name__ == '__main__':
                 role = job[0]
 
             ''' Send email '''
-            sendEmail(message)
+            sendEmail(message, jobList)
 
         else:
             print "[!] Blizzard job search didn't find anything new :("
