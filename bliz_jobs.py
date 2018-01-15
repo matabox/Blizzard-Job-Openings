@@ -3,7 +3,7 @@
 import requests
 import re
 import datetime
-import pdfkit
+#import pdfkit
 import os
 import smtplib
 from email.mime.text import MIMEText
@@ -18,7 +18,7 @@ url = "https://careers.blizzard.com/en-us/openings/partial?roles[]=%s&teams=&loc
 jobUrl = "https://careers.blizzard.com/en-us/openings/"
 
 ''' Nasty Regex '''
-regexJobs = r'en-us\/openings\/([A-Za-z0-9]{8})\\" class=\\"Table-item Table-link is-link\\"><div class=\\"Table-column Table-headline is-wrapped is-firstMobile\\">([A-Za-z ,-]{0,100})<\/div>'
+regexJobs = r'en-us\/openings\/([A-Za-z0-9]{8})\\" class=\\"Table-item Table-link is-link\\"><div class=\\"Table-column Table-headline is-wrapped is-firstMobile\\">([ -~]{0,100}?)<\/div><div class=\\"Tab'
 regexMetadata = r'Markup Markup--html">(.*)<\/div><div class="space-medium"><\/div><a href="https:\/\/app'
 regexTitle = r'<title>(.*)<\/title>'
 
@@ -131,7 +131,10 @@ if __name__ == '__main__':
                 role = job[0]
 
             ''' Send email '''
-            sendEmail(message, jobList)
+            try:
+                sendEmail(message, jobList)
+            except Exception as why:
+                print "{!] Failed to send email because: %s" % (why)
 
         else:
             print "[!] Blizzard job search didn't find anything new :("
